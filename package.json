@@ -1,0 +1,31 @@
+{
+  "name": "electron",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+  "electron": "electron .",
+  "electron-dev": "concurrently \"npm run server-dev\" \"npm run client\" \"wait-on http://localhost:5173 && electron .\"",
+  "electron-prod": "concurrently \"npm run server-prod\" \"npm run client\" \"wait-on http://localhost:5173 && electron .\"",
+
+  "server-dev": "cd src/main && npm run dev",
+  "server-prod": "cd src/main && npm start",
+
+  "client": "cd src/rendered && npm run dev",
+  "build": "cd src/rendered && npm run build",
+  "dist": "npm run build && electron-builder",
+
+  "install-deps": "npm install && cd src/main && npm install && cd ../rendered && npm install"
+},
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.1",
+    "electron-builder": "^26.0.12",
+    "wait-on": "^8.0.3"
+  },
+  "dependencies": {
+    "node-machine-id": "^1.1.12"
+  }
+}

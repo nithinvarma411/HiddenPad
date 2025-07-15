@@ -1,10 +1,10 @@
-const { app, BrowserWindow, globalShortcut } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
 const path = require('path');
 const { machineIdSync } = require('node-machine-id');
 const crypto = require('crypto');
 
 let win;
-let isTransparent = true;
+let isTransparent = false; // Start as opaque
 let isVisible = true;
 
 // ✅ Hash the device ID securely here
@@ -34,6 +34,14 @@ const createWindow = () => {
 
   win.setContentProtection(true);
   win.loadURL('http://localhost:5173');
+
+  // Handle transparency query from renderer
+  ipcMain.handle('get-transparency', () => isTransparent);
+
+  // Notify renderer when transparency changes
+  win.on('opacity-changed', () => {
+    win.webContents.send('transparency-changed', isTransparent);
+  });
 };
 
 app.whenReady().then(() => {
@@ -46,14 +54,16 @@ app.whenReady().then(() => {
     isVisible = !isVisible;
   });
 
-  globalShortcut.register('CommandOrControl+R', () => {
+  globalShortcut.register('CommandOrControl+shift+R', () => {
     if (win) win.reload();
   });
 
   globalShortcut.register('CommandOrControl+T', () => {
     if (win) {
       isTransparent = !isTransparent;
-      win.setOpacity(isTransparent ? 0.5 : 1);
+      win.setOpacity(isTransparent ? 0.8 : 1);
+      // Notify renderer of transparency change
+      win.webContents.send('transparency-changed', isTransparent);
     }
   });
 

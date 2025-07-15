@@ -7,6 +7,8 @@ function Notes() {
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isTransparent, setIsTransparent] = useState(false); // Start as opaque
 
   // Fetch notes titles from backend
   useEffect(() => {
@@ -29,10 +31,22 @@ function Notes() {
             )
           : [];
         setNotes(titlesArray);
-        if (titlesArray.length > 0) setActiveNote(titlesArray[0]);
+        // Do NOT setActiveNote here
       }
     };    
     fetchTitles();
+  }, []);
+
+  useEffect(() => {
+    // Get initial transparency state
+    window.electronAPI?.getTransparency?.().then((val) => {
+      // If the backend says true, set transparent, else opaque
+      setIsTransparent(!!val);
+    });
+    // Listen for changes
+    window.electronAPI?.onTransparencyChanged?.((val) => {
+      setIsTransparent(!!val);
+    });
   }, []);
 
   const addNewNote = () => {
@@ -72,14 +86,76 @@ function Notes() {
     }
   };
 
-  const selectNote = (note) => {
+  const selectNote = async (note) => {
     setActiveNote(note);
-    setNoteContent(note.notes || '');
+    setNoteContent(''); // Clear while loading
+    const deviceId = window.electronAPI?.getDeviceId?.();
+    if (!deviceId || !note.title) return;
+    try {
+      const res = await fetch(
+        `http://localhost:3894/api/v1/notes/getnote?title=${encodeURIComponent(note.title)}`,
+        {
+          headers: { 'x-device-id': deviceId }
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setNoteContent(data.note?.notes || '');
+      } else {
+        setNoteContent('');
+      }
+    } catch {
+      setNoteContent('');
+    }
   };
 
   const updateNoteContent = (content) => {
     setNoteContent(content);
     // Optionally, implement saving notes to backend here
+  };
+
+  const deleteActiveNote = async () => {
+    if (!activeNote || !activeNote.title) return;
+    if (!window.confirm(`Delete note "${activeNote.title}"?`)) return;
+    setIsDeleting(true);
+    const deviceId = window.electronAPI?.getDeviceId?.();
+    if (!deviceId) {
+      setIsDeleting(false);
+      return;
+    }
+    await fetch(
+      `http://localhost:3894/api/v1/notes/deletenote?title=${encodeURIComponent(activeNote.title)}`,
+      {
+        method: 'DELETE',
+        headers: { 'x-device-id': deviceId }
+      }
+    );
+    // Refresh notes list
+    const res = await fetch('http://localhost:3894/api/v1/notes/gettitle', {
+      headers: { 'x-device-id': deviceId }
+    });
+    const data = await res.json();
+    let titlesArray = [];
+    if (data.titles) {
+      titlesArray = Array.isArray(data.titles)
+        ? data.titles.map(t =>
+            typeof t === "string"
+              ? { title: t }
+              : t
+          )
+        : [];
+      setNotes(titlesArray);
+    }
+    // Set new active note or clear
+    if (titlesArray.length > 0) {
+      setActiveNote(titlesArray[0]);
+      // Optionally fetch its content
+      selectNote(titlesArray[0]);
+    } else {
+      setActiveNote(null);
+      setNoteContent('');
+    }
+    setIsDeleting(false);
   };
 
   return (
@@ -119,7 +195,11 @@ function Notes() {
       )}
 
       {/* Sidebar */}
-      <div className="w-80 bg-gray-900 flex flex-col no-drag">
+      <div
+        className={`w-80 flex flex-col no-drag ${
+          isTransparent ? "bg-gray-900 bg-opacity-80" : "bg-gray-900"
+        }`}
+      >
         {/* Add New Notes Button */}
         <button
           onClick={addNewNote}
@@ -127,7 +207,6 @@ function Notes() {
         >
           ADD NEW NOTES
         </button>
-        
         {/* Notes List */}
         <div className="flex-1 overflow-y-auto no-drag">
           {notes.map((note, idx) => (
@@ -145,54 +224,90 @@ function Notes() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="p-8 border-b border-gray-600">
-          <h1 className="text-white text-2xl font-medium">
-            {activeNote ? activeNote.title : ''}
-          </h1>
-        </div>
-        
-        {/* Content Area */}
-        <div className="flex-1 p-8 no-drag">
-          <textarea
-            value={noteContent || ""}
-            onChange={(e) => updateNoteContent(e.target.value)}
-            placeholder="ENTER YOUR NOTES HERE ......."
-            className="w-full h-full bg-transparent text-white placeholder-gray-400 text-lg resize-none outline-none font-light"
-            disabled={!activeNote || !activeNote.title}
-          />
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={async () => {
-                if (!activeNote || !activeNote.title) return;
-                setIsSaving(true);
-                const deviceId = window.electronAPI?.getDeviceId?.();
-                if (!deviceId) {
-                  setIsSaving(false);
-                  return;
-                }
-                await fetch('http://localhost:3894/api/v1/notes/addnotes', {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'x-device-id': deviceId
-                  },
-                  body: JSON.stringify({ title: activeNote.title, notes: noteContent })
-                });
-                setIsSaving(false);
-              }}
-              disabled={!activeNote || !activeNote.title || isSaving}
-              className={`px-6 py-2 text-white rounded disabled:opacity-50 ${
-                isSaving
-                  ? "bg-yellow-500 cursor-wait"
-                  : "bg-green-600 hover:bg-green-700"
-              }`}
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
+      <div
+        className={`flex-1 flex flex-col ${
+          isTransparent ? "bg-gray-900 bg-opacity-80" : ""
+        }`}
+      >
+        {/* Only show header/content if a note is selected */}
+        {activeNote && activeNote.title ? (
+          <>
+            {/* Header */}
+            <div className="p-8 border-b border-gray-600 flex items-center justify-between">
+              <h1
+                className="text-2xl font-medium text-white"
+              >
+                {activeNote.title}
+              </h1>
+              <button
+                onClick={deleteActiveNote}
+                disabled={isDeleting}
+                className={`ml-4 px-4 py-2 rounded no-drag ${
+                  isDeleting
+                    ? "bg-red-300 cursor-wait"
+                    : "bg-red-600 hover:bg-red-700"
+                } ${
+                  isTransparent
+                    ? 'text-yellow-600'
+                    : 'text-white'
+                }`}
+                title="Delete Note"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+            {/* Content Area */}
+            <div className="flex-1 p-8 no-drag flex flex-col h-full">
+              <textarea
+                value={noteContent || ""}
+                onChange={(e) => updateNoteContent(e.target.value)}
+                placeholder="ENTER YOUR NOTES HERE ......."
+                className="w-full flex-1 bg-transparent text-white placeholder-gray-400 resize-none outline-none font-light"
+                style={{ fontSize: "2rem" }}
+                disabled={!activeNote || !activeNote.title}
+              />
+              <div className="flex justify-end mt-auto">
+                <button
+                  onClick={async () => {
+                    if (!activeNote || !activeNote.title) return;
+                    setIsSaving(true);
+                    const deviceId = window.electronAPI?.getDeviceId?.();
+                    if (!deviceId) {
+                      setIsSaving(false);
+                      return;
+                    }
+                    await fetch('http://localhost:3894/api/v1/notes/addnotes', {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'x-device-id': deviceId
+                      },
+                      body: JSON.stringify({ title: activeNote.title, notes: noteContent })
+                    });
+                    setIsSaving(false);
+                  }}
+                  disabled={!activeNote || !activeNote.title || isSaving}
+                  className={`px-6 py-2 rounded disabled:opacity-50 ${
+                    isSaving
+                      ? "bg-yellow-500 cursor-wait"
+                      : "bg-green-600 hover:bg-green-700"
+                  } ${
+                    isTransparent
+                      ? 'text-yellow-600'
+                      : 'text-white'
+                  }`}
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          // Show nothing (or a placeholder if you want)
+          <div className="flex-1 flex items-center justify-center text-gray-400 text-2xl select-none">
+            {/* Nothing is shown by default */}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

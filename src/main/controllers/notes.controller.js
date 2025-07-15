@@ -72,4 +72,40 @@ const addNotes = async (req, res) => {
   }
 };
 
-export { addTitle, getTitle, addNotes };
+const getNoteByTitle = async (req, res) => {
+  try {
+    const deviceId = req.user.deviceId;
+    const { title } = req.query;
+    if (!title) {
+      return res.status(400).send({ message: "Title is required" });
+    }
+    const note = await Note.findOne({ deviceId, title });
+    if (!note) {
+      return res.status(404).send({ message: "Note not found" });
+    }
+    return res.status(200).send({ note });
+  } catch (error) {
+    console.error("Error retrieving note by title", error);
+    return res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
+const deleteNote = async (req, res) => {
+  try {
+    const deviceId = req.user.deviceId;
+    const { title } = req.query;
+    if (!title) {
+      return res.status(400).send({ message: "Title is required" });
+    }
+    const deleted = await Note.findOneAndDelete({ deviceId, title });
+    if (!deleted) {
+      return res.status(404).send({ message: "Note not found" });
+    }
+    return res.status(200).send({ message: "Note deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting note", error);
+    return res.status(500).send({ message: "Internal Server Error" });
+  }
+};
+
+export { addTitle, getTitle, addNotes, getNoteByTitle, deleteNote };

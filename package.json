@@ -3,19 +3,16 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
-  "electron": "electron .",
-  "electron-dev": "concurrently \"npm run server-dev\" \"npm run client\" \"wait-on http://localhost:5173 && electron .\"",
-  "electron-prod": "concurrently \"npm run server-prod\" \"npm run client\" \"wait-on http://localhost:5173 && electron .\"",
-
-  "server-dev": "cd src/main && npm run dev",
-  "server-prod": "cd src/main && npm start",
-
-  "client": "cd src/rendered && npm run dev",
-  "build": "cd src/rendered && npm run build",
-  "dist": "npm run build && electron-builder",
-
-  "install-deps": "npm install && cd src/main && npm install && cd ../rendered && npm install"
-},
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run server-dev\" \"npm run client\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron-prod": "concurrently \"npm run server-prod\" \"npm run client\" \"wait-on http://localhost:5173 && electron .\"",
+    "server-dev": "cd src/main && npm run dev",
+    "server-prod": "cd src/main && npm start",
+    "client": "cd src/rendered && npm run dev",
+    "build": "cd src/rendered && npm run build",
+    "dist": "npm run build && electron-builder",
+    "install-deps": "npm install && cd src/main && npm install && cd ../rendered && npm install"
+  },
   "author": "",
   "license": "ISC",
   "description": "",
@@ -27,5 +24,19 @@
   },
   "dependencies": {
     "node-machine-id": "^1.1.12"
+  },
+  "build": {
+    "appId": "com.hiddenpad.desktop",
+    "productName": "HiddenPad",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "src/main/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "asar": true
   }
 }

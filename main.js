@@ -33,7 +33,12 @@ const createWindow = () => {
   });
 
   win.setContentProtection(true);
-  win.loadURL('http://localhost:5173');
+  if (app.isPackaged) {
+    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  } else {
+    win.loadURL('http://localhost:5173');
+  }
+
 
   // Handle transparency query from renderer
   ipcMain.handle('get-transparency', () => isTransparent);

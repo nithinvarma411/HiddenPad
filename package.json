@@ -10,7 +10,9 @@
     "server-prod": "cd src/main && npm start",
     "client": "cd src/rendered && npm run dev",
     "build": "cd src/rendered && npm run build",
-    "dist": "npm run build && electron-builder",
+    "copy-env": "copy src\\main\\.env dist\\main\\",
+    "build-backend": "esbuild src/main/server.js --bundle --platform=node --outdir=dist/main",
+    "dist": "npm run build && npm run build-backend && npm run copy-env && electron-builder",
     "install-deps": "npm install && cd src/main && npm install && cd ../rendered && npm install"
   },
   "author": "",
@@ -20,6 +22,7 @@
     "concurrently": "^9.2.0",
     "electron": "^37.2.1",
     "electron-builder": "^26.0.12",
+    "esbuild": "^0.25.8",
     "wait-on": "^8.0.3"
   },
   "dependencies": {
@@ -29,13 +32,19 @@
     "appId": "com.hiddenpad.desktop",
     "productName": "HiddenPad",
     "directories": {
-      "output": "dist"
+      "output": "build"
     },
     "files": [
       "main.js",
-      "src/main/**/*",
-      "dist/**/*",
+      "preload.js",
+      "src/rendered/dist/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/main",
+        "to": "server"
+      }
     ],
     "asar": true
   }

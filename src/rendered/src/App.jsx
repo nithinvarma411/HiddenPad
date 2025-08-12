@@ -1,14 +1,13 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { HashRouter, Routes, Route } from "react-router-dom"
 import Notes from "./Notes"
 
 function App() {
-
   return (
-    <BrowserRouter basename="/">
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Notes/>} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 

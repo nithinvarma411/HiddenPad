@@ -1,11 +1,18 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+const isDev = process.env.NODE_ENV !== 'production';
+
+if (isDev) {
+  dotenv.config();
+} else {
+  // Production (after build): load from dist/main/.env
+  dotenv.config({ path: path.resolve(process.cwd(), 'dist', 'main', '.env') });
+}
 import express from 'express';
 import cors from 'cors';
 import connectDB from './config/db.js';
 
 const app = express();
-const isDev = process.env.NODE_ENV == 'development';
 app.use(cors({
     origin: isDev ? 'http://localhost:5173' : false,
     credentials: true
